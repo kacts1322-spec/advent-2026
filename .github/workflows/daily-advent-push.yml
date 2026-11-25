@@ -1,0 +1,30 @@
+name: Daily Advent 7AM Push Notification
+
+# 매일 한국 시간 오전 7시(UTC 22:00) 정시에 대림절 말씀묵상 푸시 알림을 발송합니다.
+# Vercel Hobby(무료) 플랜의 Cron 실행 시간 오차를 보완하기 위한 무료 정시 스케줄러입니다.
+# GitHub 저장소 Settings > Secrets and variables > Actions에 아래 2개를 등록하세요:
+# - APP_URL: 배포된 Vercel 주소 (예: https://advent-2026.vercel.app)
+# - CRON_SECRET: Vercel 환경변수에 설정한 것과 동일한 비밀 문자열
+
+on:
+  schedule:
+    # UTC 22:00 = 한국 시간(KST) 다음날 오전 07:00
+    # 11월 28일~30일(KST 11/29~12/01) 및 12월 1일~24일(KST 12/02~12/25)
+    - cron: '0 22 28-30 11 *'
+    - cron: '0 22 1-24 12 *'
+  workflow_dispatch:
+
+jobs:
+  send-daily-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Daily 7AM Push Endpoint
+        run: |
+          if [ -z "${{ secrets.APP_URL }}" ]; then
+            echo "APP_URL 시크릿이 설정되지 않아 건너뜁니다."
+            exit 0
+          fi
+          curl --fail --show-error --silent \
+            -X POST \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "${{ secrets.APP_URL }}/api/cron/daily-push"

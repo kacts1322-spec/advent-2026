@@ -1,0 +1,192 @@
+@import "tailwindcss";
+
+:root {
+  --font-pixel: 'Galmuri11', 'Galmuri9', monospace;
+  --font-scripture: 'Gowun Batang', 'Batang', Georgia, serif;
+  --font-body: 'Noto Sans KR', 'Malgun Gothic', sans-serif;
+  --page-bg: #322457;
+  --panel-bg: #271b45;
+  --panel-bg-soft: #34255b;
+  --frame-gold: #d9be76;
+  --frame-gold-dark: #8c7235;
+  --accent-purple: #c4b5fd;
+  --highlight-bg: rgba(217, 190, 118, 0.16);
+  --highlight-border: #d9be76;
+  --text-primary: #f6f2ff;
+  --text-muted: #cdc2e8;
+}
+
+html {
+  scroll-behavior: smooth;
+  background-color: var(--page-bg);
+  color: var(--text-primary);
+}
+
+body {
+  font-family: var(--font-body), -apple-system, BlinkMacSystemFont, sans-serif;
+  background-color: var(--page-bg);
+  color: var(--text-primary);
+  min-height: 100vh;
+}
+
+.font-pixel {
+  font-family: var(--font-pixel);
+  letter-spacing: -0.01em;
+}
+
+.font-scripture {
+  font-family: var(--font-scripture), Georgia, serif;
+}
+
+/*
+ * 2D 레트로 RPG 황금 픽셀 프레임
+ * - 참고 이미지의 이중 황금 픽셀 테두리를 과하지 않고 절제된 톤으로 구현합니다.
+ */
+.pixel-panel {
+  position: relative;
+  background-color: var(--panel-bg);
+  border: 2px solid var(--frame-gold);
+  box-shadow:
+    inset 0 0 0 2px var(--frame-gold-dark),
+    0 0 0 2px #120922,
+    0 6px 0 0 rgba(8, 4, 18, 0.55);
+}
+
+.pixel-panel-soft {
+  background-color: var(--panel-bg-soft);
+  border: 2px solid var(--frame-gold-dark);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+
+.pixel-btn {
+  font-family: var(--font-pixel);
+  border: 2px solid var(--frame-gold);
+  box-shadow:
+    inset -2px -2px 0 0 var(--frame-gold-dark),
+    inset 2px 2px 0 0 rgba(255, 255, 255, 0.18),
+    0 3px 0 0 rgba(8, 4, 18, 0.65);
+  transition: transform 80ms ease, filter 120ms ease, background-color 120ms ease;
+}
+
+.pixel-btn:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.pixel-btn:active:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow:
+    inset -1px -1px 0 0 var(--frame-gold-dark),
+    0 1px 0 0 rgba(8, 4, 18, 0.65);
+}
+
+.pixel-tab {
+  font-family: var(--font-pixel);
+  border: 2px solid var(--frame-gold-dark);
+  background-color: rgba(12, 6, 28, 0.45);
+  color: var(--text-muted);
+  transition: all 120ms ease;
+}
+
+.pixel-tab:hover {
+  border-color: var(--frame-gold);
+  color: var(--text-primary);
+}
+
+.pixel-tab-active {
+  border-color: var(--frame-gold);
+  background-color: var(--panel-bg-soft);
+  color: var(--frame-gold);
+  box-shadow: inset 0 -2px 0 0 var(--frame-gold);
+}
+
+/* 잔잔하게 깜빡이는 별빛 및 눈송이 애니메이션 (과하지 않게 느린 주기 사용) */
+@keyframes softTwinkle {
+  0%, 100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 0.95;
+  }
+}
+
+@keyframes gentleSnow {
+  0% {
+    transform: translateY(-6px);
+    opacity: 0;
+  }
+  15% {
+    opacity: 0.75;
+  }
+  85% {
+    opacity: 0.75;
+  }
+  100% {
+    transform: translateY(150px);
+    opacity: 0;
+  }
+}
+
+.animate-twinkle {
+  animation: softTwinkle 3.4s steps(3, end) infinite;
+}
+
+.animate-twinkle-slow {
+  animation: softTwinkle 4.8s steps(3, end) infinite;
+}
+
+.animate-snow-1 {
+  animation: gentleSnow 9s linear infinite;
+}
+
+.animate-snow-2 {
+  animation: gentleSnow 12s linear infinite 2.5s;
+}
+
+.animate-snow-3 {
+  animation: gentleSnow 10.5s linear infinite 5s;
+}
+
+/*
+ * 4페이지 A4 묵상 스케치 인쇄 전용 레이아웃
+ * - 한 주차가 정확히 A4 1페이지(210mm x 297mm)에 딱 맞춰져 총 4장으로 출력됩니다.
+ */
+.sketch-page {
+  width: 210mm;
+  min-height: 297mm;
+  max-width: 100%;
+  padding: 13mm 14mm;
+  box-sizing: border-box;
+}
+
+@page {
+  size: A4 portrait;
+  margin: 0;
+}
+
+@media print {
+  html,
+  body {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .sketch-page {
+    width: 210mm !important;
+    height: 297mm !important;
+    min-height: 297mm !important;
+    max-height: 297mm !important;
+    padding: 12mm 13mm !important;
+    margin: 0 !important;
+    overflow: hidden !important;
+    border-width: 0 !important;
+  }
+
+  .sketch-page-break {
+    page-break-after: always;
+    break-after: page;
+  }
+}
