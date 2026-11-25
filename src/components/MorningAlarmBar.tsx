@@ -2,18 +2,28 @@
 
 import { useEffect, useState } from 'react';
 import type { AdventThemeTokens } from '@/lib/theme';
-import { Bell, BellOff, BellRing, CalendarPlus, Check, Info } from 'lucide-react';
+import { Bell, BellOff, BellRing, CalendarPlus, Check, Info, Smartphone } from 'lucide-react';
 
 /**
- * 매일 아침 7시 대림절 말씀묵상 알림 설정 바
+ * 매일 아침 7시 대림절 말씀묵상 알림 & 홈 화면 추가(PWA 설치) 설정 바
  *
- * 두 가지 방식을 함께 제공해 안드로이드·아이폰·카카오톡 인앱 브라우저까지 모두 커버합니다:
- * 1) PWA Web Push 알림: 매일 오전 7시(KST) 서버가 기기로 직접 푸시 발송
- * 2) 폰 캘린더(.ics) 일괄 등록: 11/29~12/25 매일 오전 7시 정시 알림 27일치를 기본 캘린더에 등록
+ * 제공 기능:
+ * 1) 홈 화면에 추가(앱 아이콘 생성):
+ *    - 안드로이드(Chrome/Edge/삼성인터넷): beforeinstallprompt 이벤트로 원클릭 설치 팝업 호출
+ *    - 아이폰(iOS Safari) / 카톡 인앱 브라우저: 3초 만에 따라 할 수 있는 단계별 안내 표시
+ *    - 이미 홈 화면 앱(standalone)으로 실행 중이면 자동으로 숨겨 화면을 깔끔하게 유지
+ * 2) PWA Web Push 알림: 매일 오전 7시(KST) 서버가 기기로 직접 푸시 발송
+ * 3) 폰 캘린더(.ics) 일괄 등록: 11/29~12/25 매일 오전 7시 정시 알림 27일치 등록
  */
 
 interface MorningAlarmBarProps {
   theme: AdventThemeTokens;
+}
+
+/** Chromium 기반 브라우저가 제공하는 PWA 설치 프롬프트 이벤트 타입 */
+interface BeforeInstallPromptEvent extends Event {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>;
 }
 
 /** VAPID Base64URL 공개키를 PushManager가 요구하는 Uint8Array로 변환합니다. */
@@ -33,11 +43,14 @@ export default function MorningAlarmBar({ theme }: MorningAlarmBarProps) {
   const [pushSubscribed, setPushSubscribed] = useState(false);
   const [vapidPublicKey, setVapidPublicKey] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [isInstalled, setIsInstalled] = useState(false);
   const [notice, setNotice] = useState<{ kind: 'info' | 'success' | 'warn'; text: string } | null>(
     null
   );
   const [envFlags, setEnvFlags] = useState({
     isKakaoInApp: false,
+    isIos: false,
     isIosNeedInstall: false,
     supportsPush: false,
   });
@@ -54,11 +67,30 @@ export default function MorningAlarmBar({ theme }: MorningAlarmBarProps) {
     const supportsPush =
       'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
 
+    setIsInstalled(isStandalone);
     setEnvFlags({
       isKakaoInApp,
+      isIos,
       isIosNeedInstall: isIos && !isStandalone,
       supportsPush,
     });
+
+    // 안드로이드/데스크톱 Chrome 등의 원클릭 PWA 설치 프롬프트 이벤트를 미리 확보합니다.
+    const handleBeforeInstall = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e as BeforeInstallPromptEvent);
+    };
+    const handleAppInstalled = () => {
+      setIsInstalled(true);
+      setDeferredPrompt(null);
+      setNotice({
+        kind: 'success',
+        text: '홈 화면에 대림절 트리 앱 아이콘이 추가되었습니다! 바탕화면에서 바로 열어 보세요.',
+      });
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstall);
+    window.addEventListener('appinstalled', handleAppInstalled);
 
     // 서버 VAPID 공개키 확인 및 기존 구독 상태 동기화
     let cancelled = false;
@@ -93,8 +125,59 @@ export default function MorningAlarmBar({ theme }: MorningAlarmBarProps) {
 
     return () => {
       cancelled = true;
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
+      window.removeEventListener('appinstalled', handleAppInstalled);
     };
   }, []);
+
+  const handleInstallApp = async () => {
+    setNotice(null);
+
+    if (envFlags.isKakaoInApp) {
+      setNotice({
+        kind: 'warn',
+        text: "카카오톡 내부 브라우저에서는 홈 화면 추가가 제한됩니다. 우측 하단 메뉴(⋮) → '다른 브라우저로 열기'로 여신 뒤 다시 눌러 주세요!",
+      });
+      return;
+    }
+
+    // 1) 안드로이드/데스크톱 Chrome 등: OS 기본 '앱 설치' 팝업 즉시 실행
+    if (deferredPrompt) {
+      try {
+        await deferredPrompt.prompt();
+        const choice = await deferredPrompt.userChoice;
+        if (choice.outcome === 'accepted') {
+          setIsInstalled(true);
+          setDeferredPrompt(null);
+          setNotice({
+            kind: 'success',
+            text: '홈 화면에 대림절 트리 앱 아이콘이 추가되고 있습니다!',
+          });
+        }
+      } catch {
+        setNotice({
+          kind: 'info',
+          text: "브라우저 우측 상단 메뉴(⋮)에서 '앱 설치' 또는 '홈 화면에 추가'를 눌러 주세요.",
+        });
+      }
+      return;
+    }
+
+    // 2) 아이폰(iOS Safari): 애플 정책상 자동 팝업이 불가하므로 3단계 안내 표시
+    if (envFlags.isIos) {
+      setNotice({
+        kind: 'info',
+        text: "아이폰(Safari) 홈 화면 추가 방법: ① 화면 하단 가운데 공유 버튼(↑) 누르기 → ② 아래로 내려 '홈 화면에 추가' 선택 → ③ 우측 상단 '추가'를 누르면 대림절 트리 아이콘이 생깁니다!",
+      });
+      return;
+    }
+
+    // 3) 그 외 브라우저 (삼성인터넷, 파이어폭스 등)
+    setNotice({
+      kind: 'info',
+      text: "브라우저 메뉴(⋮ 또는 ≡)에서 '홈 화면에 추가' 또는 '앱 설치'를 누르시면 바탕화면에 대림절 트리 아이콘이 생성됩니다!",
+    });
+  };
 
   const handleTogglePush = async () => {
     setNotice(null);
@@ -110,7 +193,7 @@ export default function MorningAlarmBar({ theme }: MorningAlarmBarProps) {
     if (envFlags.isIosNeedInstall) {
       setNotice({
         kind: 'warn',
-        text: "아이폰(Safari)은 하단 공유(↑) → '홈 화면에 추가' 후 홈 화면 아이콘으로 앱을 열어야 웹 푸시 알림을 켤 수 있어요! 번거로우시면 옆의 [캘린더 7시 등록]을 바로 이용해 보세요.",
+        text: "아이폰(Safari)은 먼저 [홈 화면에 추가]로 트리 아이콘을 만든 뒤, 그 아이콘으로 앱을 열어야 웹 푸시 알림을 켤 수 있어요! 번거로우시면 [캘린더 7시 등록]을 바로 이용해 보세요.",
       });
       return;
     }
@@ -125,7 +208,6 @@ export default function MorningAlarmBar({ theme }: MorningAlarmBarProps) {
 
     setBusy(true);
     try {
-      // 이미 구독 중이면 해제 처리
       if (pushSubscribed) {
         const reg = await navigator.serviceWorker.getRegistration('/sw.js');
         const sub = await reg?.pushManager.getSubscription();
@@ -142,7 +224,6 @@ export default function MorningAlarmBar({ theme }: MorningAlarmBarProps) {
         return;
       }
 
-      // 1) 알림 권한 요청
       const permission = await Notification.requestPermission();
       if (permission !== 'granted') {
         setNotice({
@@ -152,11 +233,9 @@ export default function MorningAlarmBar({ theme }: MorningAlarmBarProps) {
         return;
       }
 
-      // 2) Service Worker 등록
       const registration = await navigator.serviceWorker.register('/sw.js');
       await navigator.serviceWorker.ready;
 
-      // 3) 서버 VAPID 키가 아직 미설정(로컬 개발 중)이면 테스트 알림 미리보기 제공
       if (!vapidPublicKey) {
         await registration.showNotification('대림절 말씀묵상 시간입니다', {
           body: '미리보기 알림입니다. 배포 환경에 VAPID 키를 설정하면 매일 아침 7시에 자동 발송됩니다.',
@@ -165,12 +244,11 @@ export default function MorningAlarmBar({ theme }: MorningAlarmBarProps) {
         });
         setNotice({
           kind: 'info',
-          text: '미리보기 알림을 띄워드렸습니다! 배포 시 .env에 VAPID 키를 등록하면 매일 아침 7시에 자동으로 울립니다.',
+          text: '미리보기 알림을 띄워드렸습니다! 배포 시 VAPID 키가 설정되어 있으면 매일 아침 7시에 자동으로 울립니다.',
         });
         return;
       }
 
-      // 4) 실제 Web Push 구독 생성 및 서버(Supabase) 저장
       const subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
@@ -217,15 +295,31 @@ export default function MorningAlarmBar({ theme }: MorningAlarmBarProps) {
           )}
           <div>
             <p className="font-pixel text-xs sm:text-sm" style={{ color: theme.frameGold }}>
-              매일 아침 7시 말씀묵상 알림
+              매일 아침 7시 알림 &amp; 앱 설치
             </p>
             <p className="mt-0.5 text-[11px]" style={{ color: theme.textMuted }}>
-              “대림절 말씀묵상 시간입니다” 알림을 폰으로 받아보세요
+              “대림절 말씀묵상 시간입니다” 알림과 홈 화면 아이콘을 설정해 보세요
             </p>
           </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          {/* 이미 홈 화면 앱으로 열려 있을 때는 숨기고, 브라우저 접속 시에만 표시 */}
+          {!isInstalled && (
+            <button
+              type="button"
+              onClick={() => void handleInstallApp()}
+              className="pixel-btn inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px]"
+              style={{
+                backgroundColor: 'rgba(124, 58, 237, 0.28)',
+                color: '#f5f0ff',
+              }}
+            >
+              <Smartphone className="h-3.5 w-3.5" style={{ color: theme.frameGold }} />
+              <span>홈 화면에 추가</span>
+            </button>
+          )}
+
           <button
             type="button"
             disabled={busy}
