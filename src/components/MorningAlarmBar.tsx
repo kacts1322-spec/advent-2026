@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import type { AdventThemeTokens } from '@/lib/theme';
-import { Bell, BellOff, BellRing, CalendarPlus, Check, Info, Smartphone } from 'lucide-react';
+import { Bell, BellOff, BellRing, CalendarPlus, Check, Info, Smartphone, Upload } from 'lucide-react';
 
 /**
  * 매일 아침 7시 대림절 말씀묵상 알림 & 홈 화면 추가(PWA 설치) 설정 바
@@ -39,15 +39,28 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array<ArrayBuffer> {
   return outputArray;
 }
 
+/** 아이폰 카카오톡/Safari 공유 버튼(받침 트레이 위 위쪽 화살표) 인라인 아이콘 배지 */
+function ShareTrayIconBadge() {
+  return (
+    <span
+      className="mx-0.5 inline-flex items-center justify-center rounded-xs border border-amber-300/60 bg-amber-200/15 px-1 py-0.5 align-middle text-amber-200"
+      aria-label="공유 버튼 아이콘"
+    >
+      <Upload className="h-3 w-3 stroke-[2.4]" />
+    </span>
+  );
+}
+
 export default function MorningAlarmBar({ theme }: MorningAlarmBarProps) {
   const [pushSubscribed, setPushSubscribed] = useState(false);
   const [vapidPublicKey, setVapidPublicKey] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isInstalled, setIsInstalled] = useState(false);
-  const [notice, setNotice] = useState<{ kind: 'info' | 'success' | 'warn'; text: string } | null>(
-    null
-  );
+  const [notice, setNotice] = useState<{
+    kind: 'info' | 'success' | 'warn';
+    text: ReactNode;
+  } | null>(null);
   const [envFlags, setEnvFlags] = useState({
     isKakaoInApp: false,
     isIos: false,
@@ -136,9 +149,14 @@ export default function MorningAlarmBar({ theme }: MorningAlarmBarProps) {
     if (envFlags.isKakaoInApp) {
       setNotice({
         kind: 'warn',
-        text: envFlags.isIos
-          ? "아이폰 카카오톡에서는 홈 화면 추가가 제한됩니다. 우측 하단 공유 버튼(네모 위 화살표) → 'Safari로 열기'로 여신 뒤 다시 눌러 주세요!"
-          : "카카오톡 내부 브라우저에서는 홈 화면 추가가 제한됩니다. 우측 하단 메뉴(⋮) → '다른 브라우저로 열기'로 여신 뒤 다시 눌러 주세요!",
+        text: envFlags.isIos ? (
+          <>
+            아이폰 카카오톡에서는 홈 화면 추가가 제한됩니다. 우측 하단 공유 버튼
+            <ShareTrayIconBadge />→ &apos;Safari로 열기&apos;로 여신 뒤 다시 눌러 주세요!
+          </>
+        ) : (
+          "카카오톡 내부 브라우저에서는 홈 화면 추가가 제한됩니다. 우측 하단 메뉴(⋮) → '다른 브라우저로 열기'로 여신 뒤 다시 눌러 주세요!"
+        ),
       });
       return;
     }
@@ -169,7 +187,13 @@ export default function MorningAlarmBar({ theme }: MorningAlarmBarProps) {
     if (envFlags.isIos) {
       setNotice({
         kind: 'info',
-        text: "아이폰(Safari) 홈 화면 추가 방법: ① 화면 하단 가운데 공유 버튼(↑) 누르기 → ② 아래로 내려 '홈 화면에 추가' 선택 → ③ 우측 상단 '추가'를 누르면 대림절 트리 아이콘이 생깁니다!",
+        text: (
+          <>
+            아이폰(Safari) 홈 화면 추가 방법: ① 화면 하단 가운데 공유 버튼
+            <ShareTrayIconBadge /> 누르기 → ② 아래로 내려 &apos;홈 화면에 추가&apos; 선택 → ③ 우측
+            상단 &apos;추가&apos;를 누르면 대림절 트리 아이콘이 생깁니다!
+          </>
+        ),
       });
       return;
     }
@@ -187,9 +211,15 @@ export default function MorningAlarmBar({ theme }: MorningAlarmBarProps) {
     if (envFlags.isKakaoInApp) {
       setNotice({
         kind: 'warn',
-        text: envFlags.isIos
-          ? "아이폰 카카오톡에서는 푸시 알림이 제한됩니다. 우측 하단 공유 버튼(네모 위 화살표) → 'Safari로 열기'를 이용하시거나, 옆의 [캘린더 7시 등록] 버튼을 눌러 주세요!"
-          : "카카오톡 내부 브라우저에서는 푸시 알림이 제한됩니다. 우측 하단 메뉴(⋮) → '다른 브라우저로 열기'를 이용하시거나, 옆의 [캘린더 7시 등록] 버튼을 눌러 주세요!",
+        text: envFlags.isIos ? (
+          <>
+            아이폰 카카오톡에서는 푸시 알림이 제한됩니다. 우측 하단 공유 버튼
+            <ShareTrayIconBadge />→ &apos;Safari로 열기&apos;를 이용하시거나, 옆의 [캘린더 7시 등록]
+            버튼을 눌러 주세요!
+          </>
+        ) : (
+          "카카오톡 내부 브라우저에서는 푸시 알림이 제한됩니다. 우측 하단 메뉴(⋮) → '다른 브라우저로 열기'를 이용하시거나, 옆의 [캘린더 7시 등록] 버튼을 눌러 주세요!"
+        ),
       });
       return;
     }
