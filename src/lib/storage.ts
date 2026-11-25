@@ -38,10 +38,13 @@ function getSupabaseClient(): SupabaseClient | null {
     return cachedSupabaseClient;
   }
 
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
-  const key =
-    process.env.SUPABASE_SERVICE_ROLE_KEY?.trim() ||
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim();
+  // 서버 전용 변수(SUPABASE_URL, SUPABASE_ANON_KEY)를 우선 사용해 브라우저 번들 노출을 방지합니다.
+  const url = (process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL)?.trim();
+  const key = (
+    process.env.SUPABASE_SERVICE_ROLE_KEY ||
+    process.env.SUPABASE_ANON_KEY ||
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  )?.trim();
 
   if (url && key) {
     cachedSupabaseClient = createClient(url, key, {
