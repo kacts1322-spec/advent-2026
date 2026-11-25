@@ -136,7 +136,9 @@ export default function MorningAlarmBar({ theme }: MorningAlarmBarProps) {
     if (envFlags.isKakaoInApp) {
       setNotice({
         kind: 'warn',
-        text: "카카오톡 내부 브라우저에서는 홈 화면 추가가 제한됩니다. 우측 하단 메뉴(⋮) → '다른 브라우저로 열기'로 여신 뒤 다시 눌러 주세요!",
+        text: envFlags.isIos
+          ? "아이폰 카카오톡에서는 홈 화면 추가가 제한됩니다. 우측 하단 공유 버튼(네모 위 화살표) → 'Safari로 열기'로 여신 뒤 다시 눌러 주세요!"
+          : "카카오톡 내부 브라우저에서는 홈 화면 추가가 제한됩니다. 우측 하단 메뉴(⋮) → '다른 브라우저로 열기'로 여신 뒤 다시 눌러 주세요!",
       });
       return;
     }
@@ -185,7 +187,9 @@ export default function MorningAlarmBar({ theme }: MorningAlarmBarProps) {
     if (envFlags.isKakaoInApp) {
       setNotice({
         kind: 'warn',
-        text: "카카오톡 내부 브라우저에서는 푸시 알림이 제한됩니다. 우측 하단(⋮) → '다른 브라우저로 열기'를 이용하시거나, 옆의 [캘린더 7시 등록] 버튼을 눌러주세요!",
+        text: envFlags.isIos
+          ? "아이폰 카카오톡에서는 푸시 알림이 제한됩니다. 우측 하단 공유 버튼(네모 위 화살표) → 'Safari로 열기'를 이용하시거나, 옆의 [캘린더 7시 등록] 버튼을 눌러 주세요!"
+          : "카카오톡 내부 브라우저에서는 푸시 알림이 제한됩니다. 우측 하단 메뉴(⋮) → '다른 브라우저로 열기'를 이용하시거나, 옆의 [캘린더 7시 등록] 버튼을 눌러 주세요!",
       });
       return;
     }
